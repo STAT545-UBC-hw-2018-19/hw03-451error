@@ -1,0 +1,155 @@
+---
+title: "hw03"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+- [Introduction](#introduction)
+  - [Load packages](#load-packages)
+- [Get the maximum and minimum of GDP per capita for all continents](#Get the maximum and minimum of GDP per capita for all continents)
+- [Alternative Means](#Alternative-Means)
+# Introduction
+
+The purpose of this assignment is to explore the `gapminder` dataset using `dplyr` and `ggplot2` packages in `R`.
+
+## Load packages
+
+```{r echo=FALSE}
+library(gapminder)
+library(tidyverse)
+library(knitr)
+library(gridExtra) #used to put plots side by side
+```
+
+## Get the maximum and minimum of GDP per capita for all continents
+
+We can find the overall maximum and minimum using the `range` function:
+
+```{r}
+range(gapminder$gdpPercap)
+```
+
+However if we want to find the maximum and minimum for each individual country, we would need to do the following:
+
+```{r}
+gdp_maxmin = gapminder %>% 
+  group_by(continent) %>% 
+  summarize(minGDP = min(gdpPercap),maxGDP=max(gdpPercap))
+gdp_maxmin %>% 
+  kable()
+```
+
+We can look at this table in a bar graph:
+
+```{r}
+min_plot = gdp_maxmin %>% 
+  ggplot(aes(x=continent,y=minGDP)) +
+  geom_col()
+max_plot = gdp_maxmin %>% 
+  ggplot(aes(x=continent,y=maxGDP)) +
+  geom_col()
+
+grid.arrange(min_plot,max_plot, ncol=2)
+```
+
+Since we plotted the maximum and minimum separately, the plots are done using different scales. It would then be useful to plot the minimum and the maximum in one bar plot so we can see them together with the same scale. To do this, we must first combine `maxGDP` and `minGDP` into one column, then we can use `ggplot` to make the plot:
+
+```{r}
+gathered_gdp_maxmin = gdp_maxmin %>%
+  gather(key="max_min",value="value",maxGDP,minGDP)
+
+gathered_gdp_maxmin %>% 
+  ggplot(aes(x=continent,y=value))+
+  geom_col(aes(fill=max_min),position="dodge")
+```
+
+We can also use facet to make individual plots for the continents. From the above plot, we see that there is a big difference between the max and min, so we will use a log scale for this plot.
+
+```{r}
+gathered_gdp_maxmin %>% 
+  ggplot(aes(x=max_min,y=value)) +
+  scale_y_log10() +
+  geom_col(position="dodge",aes(fill=max_min)) +
+  facet_wrap(~continent)
+```
+
+To get a better idea of the distribution of the GDP per capita for each continent, we will make a jitter plot superimposed on a violin plot:
+
+```{r}
+gapminder %>% 
+  ggplot(aes(x=continent,y=gdpPercap)) +
+  scale_y_log10() +
+  geom_violin(aes(colour=continent)) + 
+  geom_jitter(aes(colour=continent),alpha=0.25)
+```
+
+
+# Alternative Means
+
+Before we calculate alternative means, let's first look at a plot of the life expectancies by year:
+
+```{r}
+gapminder %>% 
+  group_by(country) %>% 
+  ggplot(aes(x=year,y=lifeExp)) +
+  geom_point(aes(colour=country),show.legend=FALSE,alpha=0.35)+
+  geom_line(aes(group=country,colour=country),show.legend=FALSE,alpha=0.2)
+```
+
+This plot doesn't tell us too much, but it gives us an idea of what the data looks like. We notice that apart from a few exceptions, the general trend is that life expectancy is increasing overall.
+
+If would be more helpful if we visualize the change in the mean life expectancy per continent. We can fit the trend on the plot as well:
+
+```{r}
+lifeExp_cont = gapminder %>% 
+  ggplot(aes(year,lifeExp,colour=continent)) + 
+  facet_wrap(~continent) +
+  geom_point(alpha=0.25) +
+  geom_smooth(colour='black',alpha=0.5)
+```
+
+We can find find the mean life expectancy for each country. It is a long table, so we only show the first 10 countries.
+
+```{r}
+country_mean = gapminder %>% 
+  group_by(continent,country) %>% 
+  summarize(m=mean(lifeExp))
+
+country_mean %>% 
+  head(10) %>% 
+  kable()
+```
+
+
+We can calculate a 10% trimmed mean as follows:
+
+```{r}
+trimmed = gapminder %>% 
+  group_by(year,continent) %>% 
+  summarize(trimmed_mean = mean(lifeExp,trim=0.1))
+
+trimmed %>% kable()
+```
+
+We can pl
+
+
+
+
+
+
+
+
+
+Compute a trimmed mean of life expectancy for different years. Or a weighted mean, weighting by population. Just try something other than the plain vanilla mean.
+
+How is life expectancy changing over time on different continents?
+
+Report the absolute and/or relative abundance of countries with low life expectancy over time by continent: Compute some measure of worldwide life expectancy – you decide – a mean or median or some other quantile or perhaps your current age. Then determine how many countries on each continent have a life expectancy less than this benchmark, for each year.
+
+Find countries with interesting stories. Open-ended and, therefore, hard. Promising but unsuccessful attempts are encouraged. This will generate interesting questions to follow up on in class.
+
+Or, make up your own! Between the dplyr coverage in class and the list above, I think you get the idea.
